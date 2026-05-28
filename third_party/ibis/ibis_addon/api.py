@@ -16,7 +16,15 @@ from typing import Iterable, Optional
 import functools
 import inspect
 
-from ibis.backends.base.sql.alchemy.datatypes import to_sqla_type
+try:
+    from ibis.backends.base.sql.alchemy.datatypes import to_sqla_type
+except ImportError:
+    from ibis.backends.base.sql.alchemy.datatypes import AlchemyType
+
+    def to_sqla_type(_, ibis_type):
+        return AlchemyType.from_ibis(ibis_type)
+
+
 import ibis.expr.datatypes as dt
 import ibis.expr.operations as ops
 from ibis.expr.types.generic import Value

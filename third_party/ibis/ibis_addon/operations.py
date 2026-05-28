@@ -27,6 +27,7 @@ import datetime
 import dateutil
 import numpy as np
 import string
+from collections.abc import Sized
 
 import google.cloud.bigquery as bq
 import ibis
@@ -41,21 +42,22 @@ from ibis.backends.base.sql.alchemy.registry import fixed_arity as sa_fixed_arit
 from ibis.backends.base.sql.alchemy.translator import AlchemyExprTranslator
 from ibis.backends.base.sql.compiler.translator import ExprTranslator
 from ibis.backends.base.sql.registry import fixed_arity
-from ibis.backends.bigquery.client import (
-    _DTYPE_TO_IBIS_TYPE as _BQ_DTYPE_TO_IBIS_TYPE,
-    _LEGACY_TO_STANDARD as _BQ_LEGACY_TO_STANDARD,
-)
 from ibis.backends.bigquery.compiler import BigQueryExprTranslator
+from ibis.backends.bigquery.datatypes import BigQueryType
 from ibis.backends.bigquery.registry import bigquery_cast
 from ibis.backends.impala.compiler import ImpalaExprTranslator
 from ibis.backends.mssql.compiler import MsSqlExprTranslator
 from ibis.backends.mysql.compiler import MySQLExprTranslator
+from ibis.backends.pandas.core import execute
 from ibis.backends.pandas.dispatch import execute_node
+from ibis.backends.pandas.execution.generic import coalesce, promote_to_sequence
 from ibis.backends.pandas.execution.temporal import execute_epoch_seconds
 from ibis.backends.postgres.compiler import PostgreSQLExprTranslator
-from ibis.expr.types import BinaryValue, NumericValue, StringValue, TemporalValue
+from ibis.expr.types import BinaryValue, DateValue, NumericValue, StringValue
+from ibis.expr.types import TimeValue, TimestampValue
 
 # Do not remove these lines, they trigger patching of Ibis code.
+from third_party.ibis.ibis_addon.compat import register_dtype
 import third_party.ibis.ibis_bigquery.api  # noqa
 from third_party.ibis.ibis_bigquery import registry as bigquery_registry
 from third_party.ibis.ibis_impala import registry as impala_registry
@@ -106,29 +108,22 @@ NAT_INT64_MIN_IN_SECONDS = np.iinfo(np.int64).min // 1_000_000_000
 
 
 class BinaryLength(ops.Value):
-    arg = rlz.one_of([rlz.value(dt.Binary), rlz.value(dt.String)])
-    output_dtype = dt.int32
-    output_shape = rlz.shape_like("arg")
+    arg: ops.Value
+    dtype = dt.int32
+    shape = rlz.shape_like("arg")
 
 
 class PaddedCharLength(ops.Value):
-    arg = rlz.one_of([rlz.value(dt.String)])
-    output_dtype = dt.int32
-    output_shape = rlz.shape_like("arg")
+    arg: ops.Value
+    dtype = dt.int32
+    shape = rlz.shape_like("arg")
 
 
 class ToChar(ops.Value):
-    arg = rlz.one_of(
-        [
-            rlz.value(dt.Decimal),
-            rlz.value(dt.float64),
-            rlz.value(dt.Date),
-            rlz.value(dt.Time),
-            rlz.value(dt.Timestamp),
-        ]
-    )
-    fmt = rlz.string
-    output_type = rlz.shape_like("arg")
+    arg: ops.Value
+    fmt: str
+    dtype = dt.string
+    shape = rlz.shape_like("arg")
 
 
 class RawSQL(ops.Comparison):
@@ -331,10 +326,7 @@ def sa_format_random(t, op):
     return sa.func.RANDOM()
 
 
-_BQ_DTYPE_TO_IBIS_TYPE["TIMESTAMP"] = dt.Timestamp(timezone="UTC")
-
-
-@dt.dtype.register(bq.schema.SchemaField)
+@register_dtype(bq.schema.SchemaField)
 def _bigquery_field_to_ibis_dtype(field):
     """Convert BigQuery `field` to an ibis type.
     Taken from ibis.backends.bigquery.client.py for issue:
@@ -364,11 +356,7 @@ def _bigquery_field_to_ibis_dtype(field):
             nullable=field.is_nullable,
         )
     else:
-        ibis_type = _BQ_LEGACY_TO_STANDARD.get(typ, typ)
-        if ibis_type in _BQ_DTYPE_TO_IBIS_TYPE:
-            ibis_type = _BQ_DTYPE_TO_IBIS_TYPE[ibis_type](nullable=field.is_nullable)
-        else:
-            ibis_type = ibis_type
+        ibis_type = BigQueryType.to_ibis(typ, nullable=field.is_nullable)
     if field.mode == "REPEATED":
         ibis_type = dt.Array(ibis_type)
     return ibis_type
@@ -381,7 +369,10 @@ def string_to_epoch(ts: str) -> int:
             # Casting datetime64 to int64 uses the minimum possible int64 when it
             # encounters NaT. Simulating the same here for when auto cast fails.
             return NAT_INT64_MIN_IN_SECONDS
-        parsed_ts = dateutil.parser.isoparse(ts).astimezone(dateutil.tz.UTC)
+        parsed_ts = dateutil.parser.isoparse(ts)
+        if parsed_ts.tzinfo is None:
+            parsed_ts = parsed_ts.replace(tzinfo=datetime.timezone.utc)
+        parsed_ts = parsed_ts.astimezone(datetime.timezone.utc)
         return (
             parsed_ts - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
         ).total_seconds()
@@ -407,6 +398,25 @@ def execute_epoch_seconds_new(op, data, **kwargs):
         return epoch_series
 
 
+def _dvt_compute_row_reduction(func, values, **kwargs):
+    final_sizes = {
+        len(value)
+        for value in values
+        if isinstance(value, Sized) and not isinstance(value, (str, bytes))
+    }
+    if not final_sizes:
+        return func(values)
+    (final_size,) = final_sizes
+    raw = func(list(map(promote_to_sequence(final_size), values)), **kwargs)
+    return pd.Series(raw).squeeze()
+
+
+@execute_node.register(ops.Coalesce, tuple)
+def execute_node_coalesce_dvt(op, values, **kwargs):
+    values = [execute(arg, **kwargs) for arg in values]
+    return _dvt_compute_row_reduction(coalesce, values)
+
+
 def _dvt_list_tables(self, like=None, database=None) -> list:
     """Alternative to BaseAlchemyBackend.list_tables that does not include views in the result."""
     tables = self.inspector.get_table_names(schema=database)
@@ -425,7 +435,8 @@ BinaryValue.byte_length = compile_binary_length
 StringValue.padded_char_length = compile_padded_char_length
 
 NumericValue.to_char = compile_to_char
-TemporalValue.to_char = compile_to_char
+for _temporal_value_type in (DateValue, TimeValue, TimestampValue):
+    _temporal_value_type.to_char = compile_to_char
 
 # This is an additional DVT only method. We tag this onto BaseAlchemyBackend
 # so we can piggy back Ibis code rather than writing metadata queries for all engines.
@@ -447,7 +458,8 @@ ExprTranslator._registry[ops.HashBytes] = format_hashbytes_base
 ExprTranslator._registry[PaddedCharLength] = ExprTranslator._registry[ops.StringLength]
 
 ImpalaExprTranslator._registry[ops.Cast] = impala_registry.sa_cast
-ImpalaExprTranslator._registry[ops.IfNull] = impala_registry.sa_ifnull
+if hasattr(ops, "IfNull"):
+    ImpalaExprTranslator._registry[ops.IfNull] = impala_registry.sa_ifnull
 ImpalaExprTranslator._registry[RawSQL] = format_raw_sql
 ImpalaExprTranslator._registry[ops.HashBytes] = impala_registry.sa_format_hashbytes
 ImpalaExprTranslator._registry[ops.RandomScalar] = fixed_arity("RAND", 0)
@@ -481,7 +493,8 @@ PostgreSQLExprTranslator._registry[PaddedCharLength] = (
 
 MsSqlExprTranslator._registry[ops.HashBytes] = mssql_registry.sa_format_hashbytes
 MsSqlExprTranslator._registry[RawSQL] = sa_format_raw_sql
-MsSqlExprTranslator._registry[ops.IfNull] = sa_fixed_arity(sa.func.isnull, 2)
+if hasattr(ops, "IfNull"):
+    MsSqlExprTranslator._registry[ops.IfNull] = sa_fixed_arity(sa.func.isnull, 2)
 MsSqlExprTranslator._registry[ops.StringJoin] = mssql_registry.sa_string_join
 MsSqlExprTranslator._registry[ops.RandomScalar] = mssql_registry.sa_format_new_id
 MsSqlExprTranslator._registry[ops.StringLength] = mssql_registry.sa_format_string_length
@@ -539,7 +552,10 @@ if SnowflakeExprTranslator:
     SnowflakeExprTranslator._registry[ops.Cast] = sa_cast_snowflake
     SnowflakeExprTranslator._registry[ops.HashBytes] = sa_format_hashbytes_snowflake
     SnowflakeExprTranslator._registry[RawSQL] = sa_format_raw_sql
-    SnowflakeExprTranslator._registry[ops.IfNull] = sa_fixed_arity(sa.func.ifnull, 2)
+    if hasattr(ops, "IfNull"):
+        SnowflakeExprTranslator._registry[ops.IfNull] = sa_fixed_arity(
+            sa.func.ifnull, 2
+        )
     SnowflakeExprTranslator._registry[ops.ExtractEpochSeconds] = sa_epoch_time_snowflake
     SnowflakeExprTranslator._registry[ops.RandomScalar] = sa_format_random
     SnowflakeExprTranslator._registry[BinaryLength] = sa_format_binary_length

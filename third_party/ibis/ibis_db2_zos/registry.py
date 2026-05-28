@@ -100,6 +100,7 @@ def db2_zos_cast(t, op):
 
 operation_registry[ops.Cast] = db2_zos_cast
 operation_registry[ops.HashBytes] = _sa_format_hashbytes
-operation_registry[ops.IfNull] = _sa_ifnull
+if hasattr(ops, "IfNull"):
+    operation_registry[ops.IfNull] = _sa_ifnull
 operation_registry[ops.RStrip] = _sa_whitespace_rstrip
 operation_registry[ops.Strftime] = _sa_strftime

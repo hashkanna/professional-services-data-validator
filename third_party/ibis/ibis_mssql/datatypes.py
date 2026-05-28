@@ -16,16 +16,17 @@ import ibis.expr.datatypes as dt
 from ibis.backends.mssql.datatypes import _MSSQL_TYPE_MAP
 from sqlalchemy.dialects import mssql
 from sqlalchemy.dialects.mssql.base import MSDialect
+from third_party.ibis.ibis_addon.compat import register_dtype
 
 
 # Override DATETIMEOFFSET and DATETIME to remove timestamp
 # scale of 7 for valid schema matching
-@dt.dtype.register(MSDialect, mssql.DATETIMEOFFSET)
+@register_dtype(MSDialect, mssql.DATETIMEOFFSET)
 def sa_mssql_datetimeoffset(_, sa_type, nullable=True):
     return dt.Timestamp(timezone="UTC", nullable=nullable)
 
 
-@dt.dtype.register(MSDialect, mssql.DATETIME2)
+@register_dtype(MSDialect, mssql.DATETIME2)
 def sa_mssql_datetime2(_, sa_type, nullable=True):
     return dt.Timestamp(nullable=nullable)
 

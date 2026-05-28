@@ -12,12 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ibis.backends.base.sql.alchemy import to_sqla_type
+try:
+    from ibis.backends.base.sql.alchemy import to_sqla_type
+except ImportError:
+
+    class _NoOpTypeDispatcher:
+        def register(self, *types):
+            return lambda func: func
+
+    to_sqla_type = _NoOpTypeDispatcher()
 import ibis.expr.datatypes as dt
 import ibm_db_dbi
 from ibm_db_sa.ibm_db import DB2Dialect_ibm_db
 import sqlalchemy as sa
 import sqlalchemy.types as sat
+from third_party.ibis.ibis_addon.compat import register_dtype
 
 # Types from https://github.com/ibmdb/python-ibmdb/blob/master/IBM_DB/ibm_db/ibm_db_dbi.py
 _type_mapping = {
@@ -50,7 +59,7 @@ DB2Dialect_ibm_db.ischema_names["VARBIN"] = DB2Dialect_ibm_db.ischema_names["VAR
 DB2Dialect_ibm_db.ischema_names["VARG"] = DB2Dialect_ibm_db.ischema_names["VARGRAPHIC"]
 
 
-@dt.dtype.register(DB2Dialect_ibm_db, sat.BINARY)
+@register_dtype(DB2Dialect_ibm_db, sat.BINARY)
 def sa_sf_binary(_, satype, nullable=True):
     return dt.Binary(nullable=nullable)
 

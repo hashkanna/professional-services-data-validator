@@ -20,9 +20,10 @@ from ibis.backends.snowflake.datatypes import parse
 from snowflake.connector.constants import FIELD_ID_TO_NAME
 from snowflake.sqlalchemy import NUMBER, BINARY
 from snowflake.sqlalchemy.snowdialect import SnowflakeDialect
+from third_party.ibis.ibis_addon.compat import register_dtype
 
 
-@dt.dtype.register(SnowflakeDialect, NUMBER)
+@register_dtype(SnowflakeDialect, NUMBER)
 def sa_sf_numeric(_, satype, nullable=True):
     return dt.Decimal(
         precision=satype.precision or 38,
@@ -31,7 +32,7 @@ def sa_sf_numeric(_, satype, nullable=True):
     )
 
 
-@dt.dtype.register(SnowflakeDialect, BINARY)
+@register_dtype(SnowflakeDialect, BINARY)
 def sa_sf_binary(_, satype, nullable=True):
     return dt.Binary(nullable=nullable)
 

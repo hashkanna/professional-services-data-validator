@@ -20,7 +20,14 @@ from sqlalchemy.dialects import oracle
 from sqlalchemy.dialects.oracle.oracledb import OracleDialect_oracledb
 
 import ibis.expr.datatypes as dt
-from ibis.backends.base.sql.alchemy.datatypes import ibis_type_to_sqla
+from third_party.ibis.ibis_addon.compat import register_dtype
+
+try:
+    from ibis.backends.base.sql.alchemy.datatypes import ibis_type_to_sqla
+except ImportError:
+    from ibis.backends.base.sql.alchemy.datatypes import (
+        _to_sqlalchemy_types as ibis_type_to_sqla,
+    )
 import oracledb
 
 # Update to avoid cast to CLOB/Text
@@ -105,78 +112,78 @@ if "BOOLEAN" not in OracleDialect_oracledb.ischema_names:
     OracleDialect_oracledb.ischema_names["BOOLEAN"] = sat.BOOLEAN
 
 
-@dt.dtype.register(OracleDialect_oracledb, sa.dialects.oracle.CLOB)
+@register_dtype(OracleDialect_oracledb, sa.dialects.oracle.CLOB)
 def sa_oracle_CLOB(_, satype, nullable=True):
     return dt.String(nullable=nullable)
 
 
-@dt.dtype.register(OracleDialect_oracledb, sa.dialects.oracle.NCLOB)
+@register_dtype(OracleDialect_oracledb, sa.dialects.oracle.NCLOB)
 def sa_oracle_NCLOB(_, satype, nullable=True):
     return dt.String(nullable=nullable)
 
 
-@dt.dtype.register(OracleDialect_oracledb, sa.dialects.oracle.LONG)
+@register_dtype(OracleDialect_oracledb, sa.dialects.oracle.LONG)
 def sa_oracle_LONG(_, satype, nullable=True):
     return dt.String(nullable=nullable)
 
 
-@dt.dtype.register(OracleDialect_oracledb, sa.dialects.oracle.NUMBER)
+@register_dtype(OracleDialect_oracledb, sa.dialects.oracle.NUMBER)
 def sa_oracle_NUMBER(_, satype, nullable=True):
     return dt.Decimal(satype.precision, satype.scale, nullable=nullable)
 
 
-@dt.dtype.register(OracleDialect_oracledb, sa.dialects.oracle.FLOAT)
+@register_dtype(OracleDialect_oracledb, sa.dialects.oracle.FLOAT)
 def sa_oracle_FLOAT(_, satype, nullable=True):
     # Oracle FLOAT is a NUMBER under the hood.
     return dt.Decimal(nullable=nullable)
 
 
-@dt.dtype.register(OracleDialect_oracledb, sa.dialects.oracle.BFILE)
+@register_dtype(OracleDialect_oracledb, sa.dialects.oracle.BFILE)
 def sa_oracle_BFILE(_, satype, nullable=True):
     return dt.Binary(nullable=nullable)
 
 
-@dt.dtype.register(OracleDialect_oracledb, sa.dialects.oracle.RAW)
+@register_dtype(OracleDialect_oracledb, sa.dialects.oracle.RAW)
 def sa_oracle_RAW(_, satype, nullable=True):
     return dt.Binary(nullable=nullable)
 
 
-@dt.dtype.register(OracleDialect_oracledb, sa.dialects.oracle.DATE)
+@register_dtype(OracleDialect_oracledb, sa.dialects.oracle.DATE)
 def sa_oracle_DATE(_, satype, nullable=True):
     return dt.Date(nullable=nullable)
 
 
-@dt.dtype.register(OracleDialect_oracledb, (sa.dialects.oracle.VARCHAR2))
+@register_dtype(OracleDialect_oracledb, (sa.dialects.oracle.VARCHAR2))
 def sa_oracle_VARCHAR2(_, satype, nullable=True):
     return dt.String(nullable=nullable)
 
 
-@dt.dtype.register(OracleDialect_oracledb, (sa.dialects.oracle.VARCHAR))
+@register_dtype(OracleDialect_oracledb, (sa.dialects.oracle.VARCHAR))
 def sa_oracle_VARCHAR(_, satype, nullable=True):
     return dt.String(nullable=nullable)
 
 
-@dt.dtype.register(OracleDialect_oracledb, (sa.dialects.oracle.NVARCHAR))
+@register_dtype(OracleDialect_oracledb, (sa.dialects.oracle.NVARCHAR))
 def sa_oracle_NVARCHAR(_, satype, nullable=True):
     return dt.String(nullable=nullable)
 
 
-@dt.dtype.register(OracleDialect_oracledb, (sa.dialects.oracle.NVARCHAR2))
+@register_dtype(OracleDialect_oracledb, (sa.dialects.oracle.NVARCHAR2))
 def sa_oracle_NVARCHAR2(_, satype, nullable=True):
     return dt.String(nullable=nullable)
 
 
-@dt.dtype.register(OracleDialect_oracledb, (sa.dialects.oracle.CHAR))
+@register_dtype(OracleDialect_oracledb, (sa.dialects.oracle.CHAR))
 def sa_oracle_CHAR(_, satype, nullable=True):
     return dt.String(nullable=nullable)
 
 
-@dt.dtype.register(OracleDialect_oracledb, (sa.dialects.oracle.NCHAR))
+@register_dtype(OracleDialect_oracledb, (sa.dialects.oracle.NCHAR))
 def sa_oracle_NCHAR(_, satype, nullable=True):
     return dt.String(nullable=nullable)
 
 
-@dt.dtype.register(OracleDialect_oracledb, sa.dialects.oracle.TIMESTAMP)
+@register_dtype(OracleDialect_oracledb, sa.dialects.oracle.TIMESTAMP)
 def sa_oracle_TIMESTAMP(_, satype, nullable=True):
     if satype.timezone:
         return dt.Timestamp(timezone="UTC", nullable=nullable)
@@ -184,26 +191,26 @@ def sa_oracle_TIMESTAMP(_, satype, nullable=True):
         return dt.Timestamp(nullable=nullable)
 
 
-@dt.dtype.register(OracleDialect_oracledb, (sa.dialects.oracle.INTERVAL, sat.Interval))
+@register_dtype(OracleDialect_oracledb, (sa.dialects.oracle.INTERVAL, sat.Interval))
 def sa_oracle_INTERVAL(_, satype, nullable=True):
     return dt.Interval(nullable=nullable)
 
 
-@dt.dtype.register(OracleDialect_oracledb, sa.dialects.oracle.BLOB)
+@register_dtype(OracleDialect_oracledb, sa.dialects.oracle.BLOB)
 def sa_oracle_BLOB(_, satype, nullable=True):
     return dt.Binary(nullable=nullable)
 
 
-@dt.dtype.register(OracleDialect_oracledb, sa.dialects.oracle.BINARY_FLOAT)
+@register_dtype(OracleDialect_oracledb, sa.dialects.oracle.BINARY_FLOAT)
 def sa_oracle_BINARY_FLOAT(_, satype, nullable=True):
     return dt.Float32(nullable=nullable)
 
 
-@dt.dtype.register(OracleDialect_oracledb, sa.dialects.oracle.BINARY_DOUBLE)
+@register_dtype(OracleDialect_oracledb, sa.dialects.oracle.BINARY_DOUBLE)
 def sa_oracle_BINARY_DOUBLE(_, satype, nullable=True):
     return dt.Float64(nullable=nullable)
 
 
-@dt.dtype.register(OracleDialect_oracledb, sa.dialects.oracle.ROWID)
+@register_dtype(OracleDialect_oracledb, sa.dialects.oracle.ROWID)
 def sa_oracle_ROWID(_, satype, nullable=True):
     return dt.String(nullable=nullable)

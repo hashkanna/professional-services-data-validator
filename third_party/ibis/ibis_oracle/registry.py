@@ -470,12 +470,22 @@ operation_registry.update(
         ops.Cast: _cast,
         ops.TypeOf: _typeof,
         # null handling
-        ops.IfNull: fixed_arity(sa.func.coalesce, 2),
+        **(
+            {ops.IfNull: fixed_arity(sa.func.coalesce, 2)}
+            if hasattr(ops, "IfNull")
+            else {}
+        ),
         # boolean reductions
         ops.Any: unary(sa.func.bool_or),
         ops.All: unary(sa.func.bool_and),
-        ops.NotAny: unary(lambda x: sa.not_(sa.func.bool_or(x))),
-        ops.NotAll: unary(lambda x: sa.not_(sa.func.bool_and(x))),
+        **(
+            {
+                ops.NotAny: unary(lambda x: sa.not_(sa.func.bool_or(x))),
+                ops.NotAll: unary(lambda x: sa.not_(sa.func.bool_and(x))),
+            }
+            if hasattr(ops, "NotAny") and hasattr(ops, "NotAll")
+            else {}
+        ),
         # strings
         ops.Substring: _substr,
         ops.StringFind: _string_find,

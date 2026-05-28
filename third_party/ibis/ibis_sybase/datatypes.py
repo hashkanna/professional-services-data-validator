@@ -19,6 +19,7 @@ from functools import partial
 from sqlalchemy.types import DATETIME, VARBINARY
 from sqlalchemy_sybase.base import ischema_names, BIT, SybaseDialect
 import ibis.expr.datatypes as dt
+from third_party.ibis.ibis_addon.compat import register_dtype
 
 ischema_names["bigdatetime"] = DATETIME
 
@@ -84,11 +85,11 @@ def type_from_result_set_info(
     return typ(nullable=bool(nullable))
 
 
-@dt.dtype.register(SybaseDialect, BIT)
+@register_dtype(SybaseDialect, BIT)
 def sa_sybase_bit(_, sa_type, nullable=True):
     return dt.Boolean(nullable=nullable)
 
 
-@dt.dtype.register(SybaseDialect, VARBINARY)
+@register_dtype(SybaseDialect, VARBINARY)
 def sa_sybase_varbinary(_, sa_type, nullable=True):
     return dt.Binary(nullable=nullable)

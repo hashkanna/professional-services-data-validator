@@ -199,7 +199,8 @@ operation_registry.update(sqlalchemy_window_functions_registry)
 operation_registry[ops.Cast] = sa_cast_sybase
 operation_registry[ops.ExtractEpochSeconds] = sa_epoch_seconds
 operation_registry[ops.HashBytes] = sa_format_hashbytes
-operation_registry[ops.IfNull] = fixed_arity(sa.func.isnull, 2)
+if hasattr(ops, "IfNull"):
+    operation_registry[ops.IfNull] = fixed_arity(sa.func.isnull, 2)
 operation_registry[ops.Literal] = sa_literal
 operation_registry[ops.RandomScalar] = mssql_registry.sa_format_new_id
 operation_registry[ops.RStrip] = sa_whitespace_rstrip
