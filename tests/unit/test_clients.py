@@ -62,6 +62,26 @@ ORACLE_CONN_CONFIG = {
 }
 
 
+class RecordingBigQueryClient:
+    name = "bigquery"
+
+    def __init__(self):
+        self.table_calls = []
+        self.schema_calls = []
+
+    def table(self, table_name, database=None, schema=None):
+        self.table_calls.append(
+            {"table_name": table_name, "database": database, "schema": schema}
+        )
+        return mock.sentinel.table
+
+    def get_schema(self, table_name, schema=None, database=None):
+        self.schema_calls.append(
+            {"table_name": table_name, "database": database, "schema": schema}
+        )
+        return mock.sentinel.schema
+
+
 def _create_table_file(table_path, data):
     """Write JSON data to given file."""
     with open(table_path, "w") as f:
@@ -90,6 +110,40 @@ def test_get_bigquery_client_sets_user_agent():
     )
     user_agent = ibis_client.client._connection._client_info.to_user_agent()
     assert "google-pso-tool/data-validator" in user_agent
+
+
+def test_get_ibis_table_splits_bigquery_project_and_dataset():
+    client = RecordingBigQueryClient()
+
+    assert (
+        clients.get_ibis_table(client, "test-project.test_dataset", "test_table")
+        is mock.sentinel.table
+    )
+
+    assert client.table_calls == [
+        {
+            "table_name": "test_table",
+            "database": "test-project",
+            "schema": "test_dataset",
+        }
+    ]
+
+
+def test_get_ibis_table_schema_splits_bigquery_project_and_dataset():
+    client = RecordingBigQueryClient()
+
+    assert (
+        clients.get_ibis_table_schema(client, "test-project.test_dataset", "test_table")
+        is mock.sentinel.schema
+    )
+
+    assert client.schema_calls == [
+        {
+            "table_name": "test_table",
+            "database": "test-project",
+            "schema": "test_dataset",
+        }
+    ]
 
 
 def test_import_oracle_client():
