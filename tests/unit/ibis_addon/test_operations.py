@@ -16,12 +16,17 @@ import datetime
 import ibis
 import pandas
 import pytest
+from ibis.backends.impala.compiler import ImpalaCompiler
+from ibis.backends.postgres.compiler import PostgreSQLCompiler
 
+from data_validation.query_builder.query_builder import CalculatedField
 from third_party.ibis.ibis_addon import operations
+from third_party.ibis.ibis_oracle.compiler import OracleCompiler
 
 TABLE_DF = pandas.DataFrame([{"column": "value"}])
 CLIENT = ibis.pandas.connect({"table": TABLE_DF})
 WHERE_FILTER = "id > 100"
+COMPILER_TABLE = ibis.table({"b": "binary", "n": "int64"}, name="t")
 
 SECONDS_IN_A_DAY = 60 * 60 * 24
 
@@ -39,6 +44,10 @@ def test_import(module_under_test):
     assert module_under_test is not None
 
 
+def _compile_sql(compiler_class, expr):
+    return str(compiler_class().to_sql(expr))
+
+
 def test_format_raw_sql_expr(module_under_test):
     ibis_table = CLIENT.table("table")
 
@@ -50,6 +59,32 @@ def test_format_raw_sql_expr(module_under_test):
     raw_sql = operations.format_raw_sql(ibis_table.column, raw_sql_column_expr)
 
     assert raw_sql == WHERE_FILTER
+
+
+@pytest.mark.parametrize("compiler_class", [PostgreSQLCompiler, OracleCompiler])
+def test_to_char_accepts_plain_format_string(compiler_class):
+    expr = COMPILER_TABLE.n.to_char("FM90.099").name("fmt")
+    sql = _compile_sql(compiler_class, expr)
+
+    assert "to_char(t0.n, 'FM90.099')" in sql
+
+
+def test_calculated_field_to_char_passes_plain_format_string():
+    calc_field = CalculatedField.to_char(
+        {"field_alias": "fmt", "default_to_char_fmt": "FM999"}, ["n"]
+    )
+    expr = calc_field.compile(COMPILER_TABLE)
+    sql = _compile_sql(PostgreSQLCompiler, expr)
+
+    assert "to_char(t0.n, 'FM999')" in sql
+
+
+def test_impala_binary_length_references_column():
+    expr = COMPILER_TABLE.b.byte_length().name("len")
+    sql = _compile_sql(ImpalaCompiler, expr)
+
+    assert "length(t0.`b`)" in sql
+    assert ":length" not in sql
 
 
 @pytest.mark.parametrize(

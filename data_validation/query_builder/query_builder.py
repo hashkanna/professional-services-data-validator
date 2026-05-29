@@ -333,7 +333,7 @@ class CalculatedField(object):
 
     @staticmethod
     def to_char(config, fields):
-        fmt = ibis.literal(config.get("default_to_char_fmt", "FM90.099"))
+        fmt = config.get("default_to_char_fmt", "FM90.099")
         return CalculatedField(
             ibis.expr.types.NumericValue.to_char, config, fields, fmt=fmt
         )

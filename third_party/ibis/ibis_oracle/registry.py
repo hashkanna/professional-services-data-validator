@@ -102,7 +102,7 @@ def _timestamp_truncate(t, op):
 def _cast(t, op):
     arg = op.arg
     typ = op.to
-    arg_dtype = arg.output_dtype
+    arg_dtype = arg.dtype
 
     sa_arg = t.translate(arg)
     if (
@@ -341,7 +341,7 @@ def _log(t, op):
         sa_base = t.translate(base)
         return sa.cast(
             sa.func.log(sa.cast(sa_base, sa.NUMERIC), sa.cast(sa_arg, sa.NUMERIC)),
-            t.get_sqla_type(op.output_dtype),
+            t.get_sqla_type(op.dtype),
         )
     return sa.func.ln(sa_arg)
 
@@ -384,8 +384,8 @@ def _table_column(t, op):
     out_expr = get_col(sa_table, op)
     out_expr.quote = t._quote_column_names
 
-    if op.output_dtype.is_timestamp():
-        timezone = op.output_dtype.timezone
+    if op.dtype.is_timestamp():
+        timezone = op.dtype.timezone
         if timezone is not None:
             # Using literal_column on Oracle because the time zone string cannot be a bind.
             # DVT by default converts everything to UTC, so special case it here to use numeric timezone to overcome that
@@ -422,7 +422,7 @@ def _string_join(t, op):
 
 
 def _literal(t, op):
-    dtype = op.output_dtype
+    dtype = op.dtype
     value = op.value
 
     if dtype.is_interval():
@@ -509,7 +509,7 @@ operation_registry.update(
         ops.TimestampTruncate: _timestamp_truncate,
         ops.IntervalFromInteger: (
             lambda t, op: t.translate(op.arg)
-            * sa.text(f"INTERVAL '1 {op.output_dtype.resolution}'")
+            * sa.text(f"INTERVAL '1 {op.dtype.resolution}'")
         ),
         ops.DateAdd: fixed_arity(operator.add, 2),
         ops.DateSub: fixed_arity(operator.sub, 2),

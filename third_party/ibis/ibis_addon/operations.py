@@ -170,7 +170,7 @@ def strftime_mysql(translator, op):
     arg = op.arg
     format_string = op.format_str
     arg_formatted = translator.translate(arg)
-    arg_type = arg.output_dtype
+    arg_type = arg.dtype
     fmt_string = translator.translate(format_string)
     if isinstance(arg_type, dt.Timestamp):
         fmt_string = "%Y-%m-%d %H:%i:%S"
@@ -237,8 +237,8 @@ def sa_epoch_time_snowflake(translator, op):
 
 def sa_format_to_char(translator, op):
     arg = translator.translate(op.arg)
-    fmt = translator.translate(op.fmt)
-    return sa.func.to_char(arg, fmt)
+    fmt = op.fmt.replace("'", "''")
+    return sa.func.to_char(arg, sa.sql.literal_column(f"'{fmt}'"))
 
 
 def sa_format_binary_length(translator, op):
@@ -255,7 +255,7 @@ def sa_cast_mysql(t, op):
     # Add cast from numeric to string
     arg = op.arg
     typ = op.to
-    arg_dtype = arg.output_dtype
+    arg_dtype = arg.dtype
 
     sa_arg = t.translate(arg)
     # Specialize going from numeric(p,s>0) to string
@@ -286,7 +286,7 @@ def sa_cast_mysql(t, op):
 def sa_cast_snowflake(t, op):
     arg = op.arg
     typ = op.to
-    arg_dtype = arg.output_dtype
+    arg_dtype = arg.dtype
     sa_arg = t.translate(arg)
 
     # Specialize going from numeric(p,s>0) to string
@@ -464,7 +464,7 @@ ImpalaExprTranslator._registry[RawSQL] = format_raw_sql
 ImpalaExprTranslator._registry[ops.HashBytes] = impala_registry.sa_format_hashbytes
 ImpalaExprTranslator._registry[ops.RandomScalar] = fixed_arity("RAND", 0)
 ImpalaExprTranslator._registry[ops.Strftime] = impala_registry.sa_strftime
-ImpalaExprTranslator._registry[BinaryLength] = sa_format_binary_length
+ImpalaExprTranslator._registry[BinaryLength] = fixed_arity("length", 1)
 
 if OracleExprTranslator:
     OracleExprTranslator._registry[RawSQL] = sa_format_raw_sql
