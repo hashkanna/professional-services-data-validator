@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import random
+import re
 import string
 from typing import TYPE_CHECKING, Optional, Tuple
 import pathlib
@@ -69,6 +70,19 @@ DVT_TRICKY_DATES_COLUMNS = [
     "col_ts_high",
     "col_ts_4712",
 ]
+
+
+def _normalize_partition_filters(filters):
+    if isinstance(filters, list):
+        return [_normalize_partition_filters(_) for _ in filters]
+
+    filters = re.sub(r"CAST\('([^']+)' AS TIMESTAMP\)", r"TIMESTAMP '\1'", filters)
+    filters = re.sub(r"CAST\('([^']+)' AS DATE\)", r"DATE '\1'", filters)
+    filters = filters.replace("<>", "!=")
+    filters = re.sub(r"\s+", " ", filters).strip()
+    filters = re.sub(r"\s*([()])\s*", r"\1", filters)
+    filters = re.sub(r"\s*([<>=!]+)\s*", r" \1 ", filters)
+    return filters
 
 
 def get_random_string(length=5):
@@ -617,7 +631,9 @@ def partition_table_test(
     assert len(partition_filters) == 1  # only one pair of tables
     # Number of partitions is as requested - assume table rows > partitions requested
     assert len(partition_filters[0][0]) == partition_builder.args.partition_num
-    assert partition_filters[0] == expected_filter
+    assert _normalize_partition_filters(partition_filters[0]) == (
+        _normalize_partition_filters(expected_filter)
+    )
 
 
 def partition_query_test(
@@ -665,7 +681,9 @@ def partition_query_test(
     assert len(partition_filters) == 1  # only one pair of tables
     # Number of partitions is as requested - assume table rows > partitions requested
     assert len(partition_filters[0][0]) == partition_builder.args.partition_num
-    assert partition_filters[0] == expected_filter
+    assert _normalize_partition_filters(partition_filters[0]) == (
+        _normalize_partition_filters(expected_filter)
+    )
 
 
 def generate_and_run_table_partitions_test(

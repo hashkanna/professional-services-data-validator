@@ -445,6 +445,9 @@ BaseAlchemyBackend.dvt_list_tables = _dvt_list_tables
 BigQueryExprTranslator._registry[ops.HashBytes] = bigquery_registry.format_hashbytes
 BigQueryExprTranslator._registry[RawSQL] = format_raw_sql
 BigQueryExprTranslator._registry[ops.Strftime] = bigquery_registry.strftime
+BigQueryExprTranslator._registry[ops.ExtractEpochSeconds] = (
+    bigquery_registry.format_epoch_seconds
+)
 BigQueryExprTranslator._registry[BinaryLength] = bigquery_registry.format_binary_length
 
 AlchemyExprTranslator._registry[RawSQL] = format_raw_sql

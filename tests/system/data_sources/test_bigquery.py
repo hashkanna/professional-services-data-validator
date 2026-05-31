@@ -1204,7 +1204,7 @@ def test_bigquery_dry_run(mock_conn, capsys):
     dry_run = json.loads(out)
     assert (
         dry_run["source_query"]
-        == f"WITH t0 AS (\n  SELECT t5.*, t5.`col_string` AS `cast__col_string`\n  FROM `{PROJECT_ID}.pso_data_validator.dvt_core_types` t5\n),\nt1 AS (\n  SELECT t0.*,\n         IFNULL(t0.`cast__col_string`, 'DEFAULT_REPLACEMENT_STRING') AS `ifnull__cast__col_string`\n  FROM t0\n),\nt2 AS (\n  SELECT t1.*,\n         rtrim(t1.`ifnull__cast__col_string`) AS `rstrip__ifnull__cast__col_string`\n  FROM t1\n),\nt3 AS (\n  SELECT t2.*,\n         ARRAY_TO_STRING([t2.`rstrip__ifnull__cast__col_string`], '') AS `concat__all`\n  FROM t2\n)\nSELECT t4.`hash__all`, t4.`id`\nFROM (\n  SELECT t3.*, TO_HEX(SHA256(t3.`concat__all`)) AS `hash__all`\n  FROM t3\n) t4"
+        == f"WITH t0 AS (\n  SELECT\n    t5.*,\n    t5.`col_string` AS `cast__col_string`\n  FROM `{PROJECT_ID}`.pso_data_validator.dvt_core_types AS t5\n), t1 AS (\n  SELECT\n    t0.*,\n    coalesce(t0.`cast__col_string`, 'DEFAULT_REPLACEMENT_STRING') AS `ifnull__cast__col_string`\n  FROM t0\n), t2 AS (\n  SELECT\n    t1.*,\n    rtrim(t1.`ifnull__cast__col_string`) AS `rstrip__ifnull__cast__col_string`\n  FROM t1\n), t3 AS (\n  SELECT\n    t2.*,\n    ARRAY_TO_STRING([t2.`rstrip__ifnull__cast__col_string`], '') AS `concat__all`\n  FROM t2\n)\nSELECT\n  t4.`hash__all`,\n  t4.`id`\nFROM (\n  SELECT\n    t3.*,\n    TO_HEX(SHA256(t3.`concat__all`)) AS `hash__all`\n  FROM t3\n) AS t4"
     )
 
 

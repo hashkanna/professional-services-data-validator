@@ -1309,7 +1309,7 @@ class ConfigManager(object):
             col_config["calc_type"] = consts.CONFIG_CUSTOM
             custom_params = {
                 "calc_params": {
-                    consts.CONFIG_CUSTOM_IBIS_EXPR: "ibis.expr.types.TemporalValue.strftime",
+                    consts.CONFIG_CUSTOM_IBIS_EXPR: "ibis.expr.types.TimestampValue.strftime",
                     consts.CONFIG_CUSTOM_PARAMS: [
                         {consts.CONFIG_CUSTOM_PARAM_FORMAT_STR: fmt}
                     ],

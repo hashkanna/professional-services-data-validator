@@ -19,6 +19,12 @@ from ibis.expr.types import StringScalar
 from third_party.ibis.ibis_addon import api, operations
 
 
+def _resolve_custom_ibis_expr(ibis_expr):
+    if ibis_expr == "ibis.expr.types.TemporalValue.strftime":
+        return ibis.expr.types.TimestampValue.strftime
+    return eval(ibis_expr)
+
+
 class AggregateField(object):
     def __init__(self, ibis_expr, field_name=None, alias=None, cast=None):
         """A representation of a table or column aggregate in Ibis
@@ -422,7 +428,9 @@ class CalculatedField(object):
         ibis_expr = config.get(consts.CONFIG_CUSTOM_IBIS_EXPR)
         expr_params = config.get(consts.CONFIG_CUSTOM_PARAMS, [])
         params = {k: v for d in expr_params for k, v in d.items()}
-        return CalculatedField(eval(ibis_expr), config, fields, **params)
+        return CalculatedField(
+            _resolve_custom_ibis_expr(ibis_expr), config, fields, **params
+        )
 
     def _compile_fields(self, ibis_table, fields):
         compiled_fields = []

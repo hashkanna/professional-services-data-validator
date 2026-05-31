@@ -14,6 +14,7 @@
 
 from ibis.backends.bigquery.registry import (
     STRFTIME_FORMAT_FUNCTIONS as BQ_STRFTIME_FORMAT_FUNCTIONS,
+    bigquery_cast,
 )
 import ibis.expr.datatypes as dt
 
@@ -28,28 +29,42 @@ def format_hashbytes(translator, op):
         raise ValueError(f"unexpected value for 'how': {op.how}")
 
 
+@bigquery_cast.register(str, dt.DataType, dt.Timestamp)
+def cast_to_timestamp(compiled_arg, from_, to):
+    return f"TIMESTAMP({compiled_arg})"
+
+
 def strftime(translator, op):
     """Timestamp formatting."""
     arg = op.arg
     format_str = op.format_str
     arg_type = arg.dtype
-    strftime_format_func_name = BQ_STRFTIME_FORMAT_FUNCTIONS[type(arg_type)]
+    strftime_format_func_name = BQ_STRFTIME_FORMAT_FUNCTIONS[arg_type]
     fmt_string = translator.translate(format_str)
     # Deal with issue 1181 due a GoogleSQL bug with dates before 1000 CE affects both date and timestamp types
     if format_str.value.startswith("%Y"):
         fmt_string = fmt_string.replace("%Y", "%E4Y", 1)
     arg_formatted = translator.translate(arg)
-    if isinstance(arg_type, dt.Timestamp):
-        return "FORMAT_{}({}, {}({}), {!r})".format(
+    if isinstance(arg_type, dt.Timestamp) and arg_type.timezone is None:
+        return f"FORMAT_{strftime_format_func_name}({fmt_string}, {arg_formatted})"
+    elif isinstance(arg_type, dt.Timestamp):
+        return "FORMAT_{}({}, {}, {!r})".format(
             strftime_format_func_name,
             fmt_string,
-            strftime_format_func_name,
             arg_formatted,
-            arg_type.timezone if arg_type.timezone is not None else "UTC",
+            arg_type.timezone,
         )
     return "FORMAT_{}({}, {})".format(
         strftime_format_func_name, fmt_string, arg_formatted
     )
+
+
+def format_epoch_seconds(translator, op):
+    arg = op.arg
+    arg_formatted = translator.translate(arg)
+    if isinstance(arg.dtype, dt.Timestamp):
+        return f"UNIX_SECONDS({arg_formatted})"
+    return f"UNIX_SECONDS(TIMESTAMP({arg_formatted}))"
 
 
 def format_binary_length(translator, op):
