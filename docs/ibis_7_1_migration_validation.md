@@ -21,6 +21,7 @@ Each branch is stacked on the branch above it in this list.
 | `kanna/ibis-7-1-docs-and-pr-notes` | Document validation commands, evidence, and remaining backend scope. |
 | `kanna/ibis-7-1-snowflake-live-validation` | Validate live Snowflake fixtures and patch Ibis 7 Snowflake reflection. |
 | `kanna/ibis-7-1-additional-backend-validation` | Validate Cloud Spanner, Cloud SQL SQL Server, and Hive/Dataproc live paths. |
+| `kanna/ibis-7-1-hive-partition-validation` | Validate Hive partition generation on a multi-node Dataproc cluster. |
 
 ## Local Environment
 
@@ -268,9 +269,9 @@ venv/bin/python -m pytest tests/system/data_sources/test_sql_server.py -q --no-c
 
 ## Hive
 
-The live Hive validation used a temporary single-node Dataproc cluster and an
-IAP SSH tunnel from `localhost:10000` to HiveServer2 on the Dataproc master. The
-fixture was loaded from `tests/resources/hive_test_tables.sql`.
+The live Hive validation used temporary Dataproc clusters and an IAP SSH tunnel
+from `localhost:10000` to HiveServer2 on the Dataproc master. The fixture was
+loaded from `tests/resources/hive_test_tables.sql`.
 
 Run a focused Hive subset:
 
@@ -288,10 +289,17 @@ venv/bin/python -m pytest \
   -q --tb=short
 ```
 
-Hive partition generation was not included in the passing subset. On the
-temporary single-node Dataproc cluster, `test_generate_partitions` did not
-complete in a reasonable window and should be retried separately on a larger or
-less constrained Hive cluster.
+Run the Hive partition generation check on a multi-node Dataproc cluster. The
+single-node cluster did not complete this check in a reasonable window.
+
+```bash
+PROJECT_ID="$PROJECT_ID" \
+HIVE_HOST=127.0.0.1 \
+HIVE_DATABASE=pso_data_validator \
+TZ=UTC \
+venv/bin/python -m pytest tests/system/data_sources/test_hive.py::test_generate_partitions \
+  -vv -s --tb=short --timeout=600
+```
 
 ## Current Evidence
 
@@ -314,13 +322,13 @@ The following gates were run locally on the stack:
 | Cloud SQL SQL Server focused system subset | `12 passed, 1 skipped, 36 deselected` |
 | Hive/Dataproc fixture seed | `dvt_core_types` seeded with 3 rows; `test_generate_partitions_v2` seeded with 32 rows |
 | Hive/Dataproc focused system subset | `5 passed` |
+| Hive/Dataproc partition generation on 3-node cluster | `1 passed` in `427.98s` |
 | Temporary GCP resources | Cloud Spanner instance, Cloud SQL SQL Server instance, Dataproc cluster, and Dataproc staging bucket deleted after validation |
 
 ## Remaining Live Backend Scope
 
 The migration has unit, compile-only, BigQuery/GCS, filesystem/GCS, MySQL,
-Postgres, Snowflake, Cloud Spanner, SQL Server, and partial Hive coverage.
+Postgres, Snowflake, Cloud Spanner, SQL Server, and focused Hive coverage.
 Additional end-to-end backend validation still depends on available credentials
 or specialized infrastructure for Oracle, Teradata, DB2, Impala, Sybase, and
-Redshift. Hive partition generation remains a specific follow-up because it did
-not complete on the temporary single-node Dataproc cluster.
+Redshift.
