@@ -19,6 +19,7 @@ Each branch is stacked on the branch above it in this list.
 | `kanna/ibis-7-1-snowflake` | Add targeted integration preflight filtering for Snowflake validation. |
 | `kanna/ibis-7-1-docker-dbs` | Validate focused MySQL/Postgres Docker-backed system tests. |
 | `kanna/ibis-7-1-docs-and-pr-notes` | Document validation commands, evidence, and remaining backend scope. |
+| `kanna/ibis-7-1-snowflake-live-validation` | Validate live Snowflake fixtures and patch Ibis 7 Snowflake reflection. |
 
 ## Local Environment
 
@@ -233,12 +234,13 @@ The following gates were run locally on the stack:
 | Filesystem GCS system tests | `8 passed` |
 | Docker MySQL focused subset | `10 passed, 1 skipped` |
 | Docker Postgres focused subset | `5 passed, 1 skipped` |
-| Snowflake preflight without credentials | blocked only on `SNOWFLAKE_ACCOUNT`, `SNOWFLAKE_USER`, `SNOWFLAKE_PASSWORD` |
-| Snowflake credential source check | no matching Secret Manager entries in `tpu-research-cloud-490704`; local SnowSQL config only has the default `connections.example` section |
+| Snowflake preflight with PAT auth | `READY integration_snowflake` |
+| Snowflake fixture seed | `DVT_CORE_TYPES` seeded with 3 rows; 14 tables present in `PSO_DATA_VALIDATOR.PUBLIC` |
+| Snowflake focused system subset | `8 passed, 27 deselected` |
 
 ## Remaining Live Backend Scope
 
-The migration has unit, compile-only, BigQuery/GCS, filesystem/GCS, MySQL, and
-Postgres coverage. Additional end-to-end backend validation still depends on
-available credentials or specialized infrastructure for Snowflake, Oracle,
+The migration has unit, compile-only, BigQuery/GCS, filesystem/GCS, MySQL,
+Postgres, and Snowflake coverage. Additional end-to-end backend validation still
+depends on available credentials or specialized infrastructure for Oracle,
 Teradata, DB2, Hive, Impala, Sybase, SQL Server, Redshift, and Cloud Spanner.

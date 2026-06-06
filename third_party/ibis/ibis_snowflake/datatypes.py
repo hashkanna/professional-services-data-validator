@@ -16,7 +16,7 @@ from typing import Iterable, Tuple
 import ibis.expr.datatypes as dt
 import sqlalchemy as sa
 from ibis.backends.snowflake import Backend as SnowflakeBackend
-from ibis.backends.snowflake.datatypes import parse
+from ibis.backends.snowflake.datatypes import SnowflakeType
 from snowflake.connector.constants import FIELD_ID_TO_NAME
 from snowflake.sqlalchemy import NUMBER, BINARY
 from snowflake.sqlalchemy.snowdialect import SnowflakeDialect
@@ -47,7 +47,9 @@ def _metadata(self, query: str) -> Iterable[Tuple[str, dt.DataType]]:
         if type_code < 3 and precision is not None and scale is not None:
             typ = dt.Decimal(precision=precision, scale=scale, nullable=is_nullable)
         else:
-            typ = parse(FIELD_ID_TO_NAME[type_code]).copy(nullable=is_nullable)
+            typ = SnowflakeType.from_string(
+                FIELD_ID_TO_NAME[type_code], nullable=is_nullable
+            )
         yield name, typ
 
 

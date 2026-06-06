@@ -230,6 +230,14 @@ def _split_bigquery_table_location(schema_name, database_name=None):
     return None, schema_name
 
 
+def _split_snowflake_table_location(schema_name, database_name=None):
+    if database_name:
+        return database_name, schema_name
+    if schema_name and "." in schema_name:
+        return schema_name.split(".", 1)
+    return None, schema_name
+
+
 def get_ibis_table(client, schema_name, table_name, database_name=None):
     """Return Ibis Table for Supplied Client.
 
@@ -240,6 +248,11 @@ def get_ibis_table(client, schema_name, table_name, database_name=None):
     """
     if client.name == "bigquery":
         database_name, schema_name = _split_bigquery_table_location(
+            schema_name, database_name=database_name
+        )
+        return client.table(table_name, database=database_name, schema=schema_name)
+    elif client.name == "snowflake":
+        database_name, schema_name = _split_snowflake_table_location(
             schema_name, database_name=database_name
         )
         return client.table(table_name, database=database_name, schema=schema_name)
@@ -283,6 +296,13 @@ def get_ibis_table_schema(
             schema_name, database_name=database_name
         )
         return client.get_schema(table_name, schema=schema_name, database=database_name)
+    elif client.name == "snowflake":
+        database_name, schema_name = _split_snowflake_table_location(
+            schema_name, database_name=database_name
+        )
+        return client.table(
+            table_name, database=database_name, schema=schema_name
+        ).schema()
     elif is_sqlalchemy_backend(client):
         return client.table(table_name, schema=schema_name).schema()
     else:

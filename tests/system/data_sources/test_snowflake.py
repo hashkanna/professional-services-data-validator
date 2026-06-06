@@ -195,7 +195,9 @@ def test_schema_validation_core_types_to_bigquery():
         tc="bq-conn",
         allow_list=(
             # Integer Snowflake NUMBERs to to BigQuery INT64.
-            "decimal(38,0):int64"
+            "decimal(38,0):int64,"
+            # Ibis 7 reflects BigQuery NUMERIC/BIGNUMERIC as decimal.
+            "int64:decimal(38,9),int64:decimal(76,38)"
         ),
     )
 
