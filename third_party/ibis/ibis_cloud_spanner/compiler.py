@@ -44,7 +44,7 @@ class SpannerExprTranslator(sql_compiler.ExprTranslator):
     )
 
     _unsupported_reductions = (ops.ApproxMedian, ops.ApproxCountDistinct)
-    _dialect_name = "spanner"
+    _dialect_name = "bigquery"
 
     @staticmethod
     def _gen_valid_name(name: str) -> str:

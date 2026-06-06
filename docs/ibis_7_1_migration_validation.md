@@ -20,6 +20,7 @@ Each branch is stacked on the branch above it in this list.
 | `kanna/ibis-7-1-docker-dbs` | Validate focused MySQL/Postgres Docker-backed system tests. |
 | `kanna/ibis-7-1-docs-and-pr-notes` | Document validation commands, evidence, and remaining backend scope. |
 | `kanna/ibis-7-1-snowflake-live-validation` | Validate live Snowflake fixtures and patch Ibis 7 Snowflake reflection. |
+| `kanna/ibis-7-1-additional-backend-validation` | Validate Cloud Spanner, Cloud SQL SQL Server, and Hive/Dataproc live paths. |
 
 ## Local Environment
 
@@ -36,6 +37,16 @@ Optional Snowflake validation requires:
 ```bash
 venv/bin/python -m pip install snowflake-sqlalchemy snowflake-connector-python
 ```
+
+Optional Hive validation requires:
+
+```bash
+venv/bin/python -m pip install PyHive hdfs
+```
+
+Optional local SQL Server validation requires `pyodbc` plus an ODBC driver. The
+local validation run used Homebrew `unixodbc` and `freetds`, with FreeTDS
+registered as `ODBC Driver 17 for SQL Server`.
 
 ## Core Gates
 
@@ -222,6 +233,66 @@ venv/bin/python -m pytest tests/system/data_sources/test_snowflake.py -q \
   -k 'count_validator or schema_validation_core_types or column_validation_core_types or row_validation_core_types'
 ```
 
+## Cloud Spanner
+
+Run a focused Cloud Spanner subset after creating a Spanner instance/database
+from `third_party/ibis/ibis_cloud_spanner/tests/ddl.sql` and loading
+`third_party/ibis/ibis_cloud_spanner/tests/dml.sql`:
+
+```bash
+PROJECT_ID="$PROJECT_ID" \
+SPANNER_INSTANCE="$SPANNER_INSTANCE" \
+SPANNER_DATABASE="${SPANNER_DATABASE:-pso_data_validator}" \
+TZ=UTC \
+venv/bin/python -m pytest tests/system/data_sources/test_spanner.py -q \
+  -k 'count_validator or grouped_count_validator or schema_validation_core_types or column_validation_core_types or row_validation_core_types or row_validation_binary_pk_to_bigquery or row_validation_comp_fields_binary_values_to_bigquery or custom_query_validation_core_types or raw_query_dvt_row_types'
+```
+
+## Cloud SQL SQL Server
+
+Run a focused SQL Server subset after loading
+`tests/resources/sqlserver_test_tables.sql` and
+`tests/system/data_sources/deploy_cloudsql/mssql_data.sql`:
+
+```bash
+PROJECT_ID="$PROJECT_ID" \
+SQL_SERVER_HOST="$SQL_SERVER_HOST" \
+SQL_SERVER_PORT="${SQL_SERVER_PORT:-1433}" \
+SQL_SERVER_USER="${SQL_SERVER_USER:-sqlserver}" \
+SQL_SERVER_PASSWORD="$SQL_SERVER_PASSWORD" \
+SQL_SERVER_DATABASE="${SQL_SERVER_DATABASE:-guestbook}" \
+TZ=UTC \
+venv/bin/python -m pytest tests/system/data_sources/test_sql_server.py -q --no-cloud-sql \
+  -k 'sql_server_count or sql_server_row or schema_validation_core_types or column_validation_core_types or row_validation_core_types or generate_partitions'
+```
+
+## Hive
+
+The live Hive validation used a temporary single-node Dataproc cluster and an
+IAP SSH tunnel from `localhost:10000` to HiveServer2 on the Dataproc master. The
+fixture was loaded from `tests/resources/hive_test_tables.sql`.
+
+Run a focused Hive subset:
+
+```bash
+PROJECT_ID="$PROJECT_ID" \
+HIVE_HOST=127.0.0.1 \
+HIVE_DATABASE=default \
+TZ=UTC \
+venv/bin/python -m pytest \
+  tests/system/data_sources/test_hive.py::test_count_validator \
+  tests/system/data_sources/test_hive.py::test_schema_validation_bool \
+  tests/system/data_sources/test_hive.py::test_schema_validation_core_types_to_bigquery \
+  tests/system/data_sources/test_hive.py::test_raw_query_dvt_row_types \
+  tests/system/data_sources/test_hive.py::test_row_validation_hash_bool_to_bigquery \
+  -q --tb=short
+```
+
+Hive partition generation was not included in the passing subset. On the
+temporary single-node Dataproc cluster, `test_generate_partitions` did not
+complete in a reasonable window and should be retried separately on a larger or
+less constrained Hive cluster.
+
 ## Current Evidence
 
 The following gates were run locally on the stack:
@@ -237,10 +308,19 @@ The following gates were run locally on the stack:
 | Snowflake preflight with PAT auth | `READY integration_snowflake` |
 | Snowflake fixture seed | `DVT_CORE_TYPES` seeded with 3 rows; 14 tables present in `PSO_DATA_VALIDATOR.PUBLIC` |
 | Snowflake focused system subset | `8 passed, 27 deselected` |
+| Cloud Spanner fixture seed | 18 DML statements executed; `dvt_core_types` seeded with 3 rows |
+| Cloud Spanner focused system subset | `11 passed, 5 deselected` |
+| Cloud SQL SQL Server fixture seed | `dvt_core_types` seeded with 3 rows; `entries` seeded with 7 rows |
+| Cloud SQL SQL Server focused system subset | `12 passed, 1 skipped, 36 deselected` |
+| Hive/Dataproc fixture seed | `dvt_core_types` seeded with 3 rows; `test_generate_partitions_v2` seeded with 32 rows |
+| Hive/Dataproc focused system subset | `5 passed` |
+| Temporary GCP resources | Cloud Spanner instance, Cloud SQL SQL Server instance, Dataproc cluster, and Dataproc staging bucket deleted after validation |
 
 ## Remaining Live Backend Scope
 
 The migration has unit, compile-only, BigQuery/GCS, filesystem/GCS, MySQL,
-Postgres, and Snowflake coverage. Additional end-to-end backend validation still
-depends on available credentials or specialized infrastructure for Oracle,
-Teradata, DB2, Hive, Impala, Sybase, SQL Server, Redshift, and Cloud Spanner.
+Postgres, Snowflake, Cloud Spanner, SQL Server, and partial Hive coverage.
+Additional end-to-end backend validation still depends on available credentials
+or specialized infrastructure for Oracle, Teradata, DB2, Impala, Sybase, and
+Redshift. Hive partition generation remains a specific follow-up because it did
+not complete on the temporary single-node Dataproc cluster.

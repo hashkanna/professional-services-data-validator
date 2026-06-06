@@ -251,6 +251,8 @@ def get_ibis_table(client, schema_name, table_name, database_name=None):
             schema_name, database_name=database_name
         )
         return client.table(table_name, database=database_name, schema=schema_name)
+    elif client.name == "spanner":
+        return client.table(table_name)
     elif client.name == "snowflake":
         database_name, schema_name = _split_snowflake_table_location(
             schema_name, database_name=database_name
@@ -296,6 +298,8 @@ def get_ibis_table_schema(
             schema_name, database_name=database_name
         )
         return client.get_schema(table_name, schema=schema_name, database=database_name)
+    elif client.name == "spanner":
+        return client.get_schema(table_name)
     elif client.name == "snowflake":
         database_name, schema_name = _split_snowflake_table_location(
             schema_name, database_name=database_name
