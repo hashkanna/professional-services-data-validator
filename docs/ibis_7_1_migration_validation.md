@@ -234,6 +234,7 @@ The following gates were run locally on the stack:
 | Docker MySQL focused subset | `10 passed, 1 skipped` |
 | Docker Postgres focused subset | `5 passed, 1 skipped` |
 | Snowflake preflight without credentials | blocked only on `SNOWFLAKE_ACCOUNT`, `SNOWFLAKE_USER`, `SNOWFLAKE_PASSWORD` |
+| Snowflake credential source check | no matching Secret Manager entries in `tpu-research-cloud-490704`; local SnowSQL config only has the default `connections.example` section |
 
 ## Remaining Live Backend Scope
 
