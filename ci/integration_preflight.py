@@ -163,7 +163,12 @@ def _check_session(check: SessionCheck) -> dict:
     }
 
 
-def build_report() -> dict:
+def build_report(session_names: set[str] | None = None) -> dict:
+    checks = (
+        [check for check in SESSION_CHECKS if check.nox_session in session_names]
+        if session_names
+        else SESSION_CHECKS
+    )
     return {
         "gcloud": {
             "account": _gcloud_value(
@@ -171,7 +176,7 @@ def build_report() -> dict:
             ),
             "project": _gcloud_value(["config", "get-value", "project"]),
         },
-        "sessions": [_check_session(check) for check in SESSION_CHECKS],
+        "sessions": [_check_session(check) for check in checks],
     }
 
 
@@ -196,9 +201,15 @@ def print_text_report(report: dict) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", action="store_true", help="Emit JSON output.")
+    parser.add_argument(
+        "--session",
+        action="append",
+        choices=sorted(check.nox_session for check in SESSION_CHECKS),
+        help="Only report the named nox session. May be repeated.",
+    )
     args = parser.parse_args()
 
-    report = build_report()
+    report = build_report(set(args.session) if args.session else None)
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
