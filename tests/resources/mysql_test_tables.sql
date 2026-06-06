@@ -69,7 +69,7 @@ CREATE TABLE `pso_data_validator`.`dvt_core_types`
 ,   col_float64     double
 ,   col_varchar_30  varchar(30)
 ,   col_char_2      char(2)
-,   col_string      varchar(21000)
+,   col_string      text
 ,   col_date        date
 ,   col_datetime    datetime(3)
 ,   col_tstz        timestamp(3)
@@ -90,6 +90,7 @@ INSERT INTO `pso_data_validator`.`dvt_core_types` VALUES
  ,'Hello DVT','C ','Hello DVT'
  ,'1970-01-03','1970-01-03 00:00:03','1970-01-03 03:00:03');
 
+DROP VIEW IF EXISTS `pso_data_validator`.`dvt_core_types_vw`;
 CREATE VIEW `pso_data_validator`.`dvt_core_types_vw` AS
 SELECT * FROM `pso_data_validator`.`dvt_core_types`;
 
@@ -167,7 +168,7 @@ INSERT INTO `pso_data_validator`.`dvt_datetime_id` VALUES
 ('2020-01-01 12:00:00', 'Row 1'), ('2020-02-01 12:00:00', 'Row 2'), ('2020-03-01 12:00:00', 'Row 3'),
 ('2020-04-01 12:00:00', 'Row 4'), ('2020-05-01 12:00:00', 'Row 5');
 
-DROP TABLE IF EXISTS `pso_data_validator`.`dvt_varchar_id`
+DROP TABLE IF EXISTS `pso_data_validator`.`dvt_varchar_id`;
 CREATE TABLE `pso_data_validator`.`dvt_varchar_id`
 (   id          varchar(15) NOT NULL
 ,   other_data  varchar(100)
@@ -179,7 +180,7 @@ INSERT INTO `pso_data_validator`.`dvt_varchar_id` VALUES
 ('DVT-key-4 ', 'Row 4'),
 ('DVT-key-5', 'Row 5');
 
-DROP TABLE IF EXISTS `pso_data_validator`.`dvt_fixed_char_id`
+DROP TABLE IF EXISTS `pso_data_validator`.`dvt_fixed_char_id`;
 CREATE TABLE `pso_data_validator`.`dvt_fixed_char_id`
 (   id          char(6) NOT NULL
 ,   other_data  varchar(100)

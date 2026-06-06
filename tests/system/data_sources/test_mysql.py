@@ -42,13 +42,14 @@ from tests.system.data_sources.common_functions import (
 )
 
 MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")
+MYSQL_PORT = int(os.getenv("MYSQL_PORT", "3306"))
 MYSQL_USER = os.getenv("MYSQL_USER", "dvt")
 CONN = {
     consts.SOURCE_TYPE: consts.SOURCE_TYPE_MYSQL,
     "host": MYSQL_HOST,
     "user": MYSQL_USER,
     "password": os.getenv("MYSQL_PASSWORD"),
-    "port": 3306,
+    "port": MYSQL_PORT,
     "database": "pso_data_validator",
     "driver": "pymysql",
 }

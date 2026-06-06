@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import ibis.expr.datatypes as dt
-from ibis.backends.postgres.datatypes import PostgresType
+from ibis.backends.postgres.datatypes import PostgresType, _from_postgres_types
 from sqlalchemy.sql import sqltypes
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql.base import PGDialect, ischema_names
@@ -39,6 +39,12 @@ def dvt_sa_postgres_interval(_, satype, nullable=True):
 @register_dtype(PGDialect, postgresql.OID)
 def sa_pg_oid(_, sa_type, nullable=True):
     return dt.int32(nullable=nullable)
+
+
+_from_postgres_types[sqltypes.TIME] = dt.Time
+_from_postgres_types[postgresql.TIME] = dt.Time
+_from_postgres_types[postgresql.OID] = dt.Int32
+_from_postgres_types[XML] = dt.Unknown
 
 
 # Matching Ibis v9.2 behaviour and mapping PostgreSQL xml type to unknown.
