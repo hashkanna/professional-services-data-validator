@@ -89,6 +89,16 @@ class RecordingSnowflakeClient:
         return RecordingSnowflakeTable(table_name, database=database, schema=schema)
 
 
+class RecordingSpannerClient:
+    name = "spanner"
+
+    def table(self, table_name):
+        return table_name
+
+    def get_schema(self, table_name):
+        return table_name
+
+
 def _create_table_file(table_path, data):
     """Write JSON data to given file."""
     with open(table_path, "w") as f:
@@ -191,6 +201,22 @@ def test_get_ibis_table_schema_uses_explicit_snowflake_database():
     )
 
     assert schema == (TABLE_NAME, "SOURCE_DATABASE", "PUBLIC")
+
+
+def test_get_ibis_table_ignores_spanner_schema():
+    client = RecordingSpannerClient()
+
+    table = clients.get_ibis_table(client, "ignored_schema", TABLE_NAME)
+
+    assert table == TABLE_NAME
+
+
+def test_get_ibis_table_schema_ignores_spanner_schema():
+    client = RecordingSpannerClient()
+
+    schema = clients.get_ibis_table_schema(client, "ignored_schema", TABLE_NAME)
+
+    assert schema == TABLE_NAME
 
 
 def test_import_oracle_client():
