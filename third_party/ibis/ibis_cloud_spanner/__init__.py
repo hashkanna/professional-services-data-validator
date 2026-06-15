@@ -17,6 +17,7 @@ from typing import Any, Mapping, Optional, Tuple
 from google.api_core import client_options
 import ibis.expr.schema as sch
 import ibis.expr.types as ir
+import re
 from google.cloud import spanner
 from ibis.backends.base.sql import BaseSQLBackend
 
@@ -161,8 +162,6 @@ class Backend(BaseSQLBackend):
         query_ast = self.compiler.to_ast_ensure_limit(expr, limit, params=params)
         sql = query_ast.compile()
         self._log(sql)
-
-        schema = expr.as_table().schema()
 
         self._register_in_memory_tables(expr)
         db = self.instance.database(self.dataset_id)
