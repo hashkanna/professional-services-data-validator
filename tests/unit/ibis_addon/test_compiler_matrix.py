@@ -20,6 +20,9 @@ from ibis.backends.mssql.compiler import MsSqlCompiler
 from ibis.backends.mysql.compiler import MySQLCompiler
 from ibis.backends.postgres.compiler import PostgreSQLCompiler
 
+from data_validation import consts
+from data_validation.query_builder.query_builder import CalculatedField
+
 # Import required in order to register DVT operations.
 import third_party.ibis.ibis_addon.operations  # noqa: F401
 from third_party.ibis.ibis_redshift.compiler import RedshiftCompiler
@@ -37,6 +40,7 @@ TABLE = ibis.table(
         "s": "string",
         "b": "binary",
         "d": "decimal(10, 2)",
+        "dt": "date",
         "ts": "timestamp",
     },
     name="t",
@@ -68,6 +72,13 @@ COMPILER_CASES = [
         ["UNIX_SECONDS(CAST(t0.`ts` AS TIMESTAMP))"],
         [],
         id="bigquery-epoch",
+    ),
+    pytest.param(
+        BigQueryCompiler,
+        lambda: TABLE.dt.epoch_seconds().name("epoch"),
+        ["UNIX_SECONDS(CAST(t0.`dt` AS TIMESTAMP))"],
+        [],
+        id="bigquery-date-epoch",
     ),
     pytest.param(
         PostgreSQLCompiler,
@@ -177,3 +188,19 @@ def test_backend_compiler_matrix(
         assert fragment in sql
     for fragment in unexpected_fragments:
         assert fragment not in sql
+
+
+def test_bigquery_temporal_custom_strftime():
+    calc_field = CalculatedField.custom(
+        {
+            "field_alias": "fmt",
+            consts.CONFIG_CUSTOM_IBIS_EXPR: "ibis.expr.types.TemporalValue.strftime",
+            consts.CONFIG_CUSTOM_PARAMS: [{"format_str": "%Y-%m-%d"}],
+            consts.CONFIG_DEPTH: 0,
+        },
+        ["ts"],
+    )
+
+    sql = _compile(BigQueryCompiler, calc_field.compile(TABLE))
+
+    assert "FORMAT_DATETIME('%E4Y-%m-%d', t0.`ts`)" in sql
